@@ -110,9 +110,9 @@ class videotrak:
             #print(finalroidiff)
             #figure out if the difference from roi is low enough to be acceptable
             if finalroidiff < 20:
-                key = cv2.waitKey(1) & 0xFF
-                if key == ord('s'):
-                    need_track_feature = True
+                # key = cv2.waitKey(1) & 0xFF
+                # if key == ord('s'):
+                #     need_track_feature = True
                 searchx1last = searchx2
                 searchy1last = searchy2
                 learnimg = img[searchy1last:(searchy1last+roiheight),searchx1last:(searchx1last+roiwidth)]
