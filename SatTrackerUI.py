@@ -1,16 +1,12 @@
-import json
-import sys
 from tkinter import *
 from tkinter import filedialog
 
 import cv2
-import geocoder
 import numpy as np
-import serial
-import win32com.client
 from PIL import Image as PILImage, ImageTk
 
 import ImageCapture
+from Controller import Controller
 
 
 def blankImage(width, height):
@@ -18,112 +14,6 @@ def blankImage(width, height):
     local_tkimg = PILImage.fromarray(blank_image)
     local_tkimg = ImageTk.PhotoImage(image=local_tkimg)
     return local_tkimg
-
-
-trackSettings = {
-    "windowwidth": 800,
-    "windowheight": 600,
-    "objectfollow": False,
-    "telescopeType": 'ASCOM',
-    "comPort": 0,
-    "camera": 0,
-    "mountType": 'Eq',
-    "tracking": False,
-    "boxSize": 50,
-    "mousecoords": (320, 240),
-    "degorhours": 'Degrees',
-    "mainviewX": 320,
-    "mainviewY": 240,
-    "setcenter": False,
-    "imageScale": 1.0,
-    "orbitFile": '',
-    "fileSelected": False,
-    "Lat": 0.0,
-    "Lon": 0.0,
-    "trackingSat": False,
-    "trackingtype": 'Features',
-    "minbright": 50,
-    "clickpixel": 0,
-    "maxpixel": 255,
-    "flip": 'NoFlip',
-    "foundtarget": False,
-    "rotate": 0,
-    "calibratestart": False,
-}
-
-
-# noinspection SpellCheckingInspection
-class Controller:
-    def __init__(self):
-        geolocation = geocoder.ip('me')
-
-        # LX200 specific variables
-        self.ser = None
-        self.serialconnected = False
-
-        # Ascom specific vars
-        self.x = None
-        self.tel = None
-        self.axis0rate = 0.0
-        self.axis1rate = 0.0
-
-    def readConfig(self):
-        try:
-            with open("Satconfig.json", "r") as json_file:
-                global trackSettings
-                trackSettings = json.load(json_file)
-        except:
-            print('Config file not present or corrupted.')
-
-    def writeConfig(self):
-        with open("Satconfig.json", "w") as json_file:
-            json.dump(trackSettings, json_file, indent=4, sort_keys=True)
-
-    def connectMount(self):
-        if trackSettings["telescopeType"] == 'LX200':
-            com_port = str('COM' + str(trackSettings["comPort"]))
-            try:
-                self.ser = serial.Serial(com_port, baudrate=9600, timeout=1, bytesize=serial.EIGHTBITS,
-                                         parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE, xonxoff=False,
-                                         rtscts=False)
-                self.ser.write(str.encode(':U#'))
-                self.serialconnected = True
-                return True, ""
-            except:
-                print('Failed to connect on ' + com_port)
-                return False, 'Failed to connect on ' + str(com_port)
-        elif trackSettings["telescopeType"] == 'ASCOM':
-            self.x = win32com.client.Dispatch("ASCOM.Utilities.Chooser")
-            self.x.DeviceType = 'Telescope'
-            driver_name = self.x.Choose("None")
-            self.tel = win32com.client.Dispatch(driver_name)
-            if self.tel.Connected:
-                return True, "Telescope was already connected"
-            else:
-                self.tel.Connected = True
-                if self.tel.Connected:
-                    axis = self.tel.CanMoveAxis(0)
-                    axis2 = self.tel.CanMoveAxis(1)
-                    if axis is False or axis2 is False:
-                        self.tel.Connected = False
-                        return False, 'This scope cannot use the MoveAxis method, aborting.'
-                    else:
-                        self.axis0rate = float(self.tel.AxisRates(0).Item(1).Maximum)
-                        self.axis1rate = float(self.tel.AxisRates(1).Item(1).Maximum)
-                        return True, 'Axis 0 max rate: ' + str(self.axis0rate) + ' Axis 1 max rate: ' + \
-                            str(self.axis1rate)
-                else:
-                    return False, "Unable to connect to telescope, expect exception"
-
-    def disconnectMount(self):
-        if trackSettings["telescopeType"] == 'LX200' and self.serialconnected is True:
-            self.ser.write(str.encode(':Q#'))
-            self.ser.write(str.encode(':U#'))
-            self.ser.close()
-            self.serialconnected = False
-        elif trackSettings["telescopeType"] == 'ASCOM':
-            self.tel.AbortSlew()
-            self.tel.Connected = False
 
 
 def varGetOrDefault(var, default):
@@ -142,7 +32,7 @@ class Buttons:
         self.master = master
         master.protocol("WM_DELETE_WINDOW", self.onClose)
 
-        master.geometry(str(trackSettings["windowwidth"]) + "x" + str(trackSettings["windowheight"]))
+        master.geometry(str(self.controller.trackSettings["windowwidth"]) + "x" + str(self.controller.trackSettings["windowheight"]))
 
         master.bind("<Configure>", self.setWindowSize)
 
@@ -168,13 +58,13 @@ class Buttons:
         self.labelLat = Label(self.bottomframe, text='Latitude (N+)')
         self.labelLat.grid(row=5, column=0)
         self.latVal = DoubleVar()
-        self.latVal.set(trackSettings["Lat"])
+        self.latVal.set(self.controller.trackSettings["Lat"])
         self.entryLat = Entry(self.bottomframe, textvariable=self.latVal)
         self.entryLat.grid(row=5, column=1)
         self.labelLon = Label(self.bottomframe, text='Longitude (E+)')
         self.labelLon.grid(row=6, column=0)
         self.lonVal = DoubleVar()
-        self.lonVal.set(trackSettings["Lon"])
+        self.lonVal.set(self.controller.trackSettings["Lon"])
         self.entryLon = Entry(self.bottomframe, textvariable=self.lonVal)
         self.entryLon.grid(row=6, column=1)
 
@@ -186,7 +76,7 @@ class Buttons:
         # self.entryBright = Entry(self.bottomframe)
         # self.entryBright.grid(row = 8, column = 1)
 
-        # self.entryBright.insert(0, trackSettings["minbright"])
+        # self.entryBright.insert(0, self.controller.trackSettings["minbright"])
         self.startButton = Button(self.bottomframe, text='Start Camera', command=self.set_img_collect)
         self.startButton.grid(row=1, column=0)
         self.startButton2 = Button(self.bottomframe, text='Camera Calibration', command=self.start_calibration)
@@ -204,7 +94,7 @@ class Buttons:
         self.entryCom.grid(row=2, column=1)
         self.textbox = Text(self.textframe, height=4, width=100)
         self.textbox.grid(row=1, column=0)
-        self.comNumber.set(trackSettings["comPort"])
+        self.comNumber.set(self.controller.trackSettings["comPort"])
         self.comNumber.trace("w", self.setComPort)
 
         self.CameraLabel = Label(self.bottomframe, text='Camera Number')
@@ -212,7 +102,7 @@ class Buttons:
         self.camNumber = IntVar()
         self.entryCam = Entry(self.bottomframe, textvariable=self.camNumber)
         self.entryCam.grid(row=3, column=1)
-        self.camNumber.set(trackSettings["camera"])
+        self.camNumber.set(self.controller.trackSettings["camera"])
         self.camNumber.trace("w", self.setCamera)
 
         self.fileMenu = Menu(self.menu)
@@ -250,48 +140,48 @@ class Buttons:
 
     # noinspection PyUnusedLocal
     def setWindowSize(self, *args):
-        trackSettings["windowwidth"] = self.master.winfo_width()
-        trackSettings["windowheight"] = self.master.winfo_height()
+        self.controller.trackSettings["windowwidth"] = self.master.winfo_width()
+        self.controller.trackSettings["windowheight"] = self.master.winfo_height()
 
     # noinspection PyUnusedLocal
     def setLat(self, *args):
-        trackSettings["Lat"] = varGetOrDefault(self.latVal, 0.0)
+        self.controller.trackSettings["Lat"] = varGetOrDefault(self.latVal, 0.0)
 
     # noinspection PyUnusedLocal
     def setLon(self, *args):
-        trackSettings["Lon"] = varGetOrDefault(self.lonVal, 0.0)
+        self.controller.trackSettings["Lon"] = varGetOrDefault(self.lonVal, 0.0)
 
     # noinspection PyUnusedLocal
     def setComPort(self, *args):
-        trackSettings["comPort"] = varGetOrDefault(self.comNumber, 0)
+        self.controller.trackSettings["comPort"] = varGetOrDefault(self.comNumber, 0)
 
     # noinspection PyUnusedLocal
     def setCamera(self, *args):
-        trackSettings["camera"] = varGetOrDefault(self.camNumber, 0)
+        self.controller.trackSettings["camera"] = varGetOrDefault(self.camNumber, 0)
 
     def setNoFlip(self):
-        trackSettings["flip"] = 'NoFlip'
+        self.controller.trackSettings["flip"] = 'NoFlip'
 
     def setVerticalFlip(self):
-        trackSettings["flip"] = 'VerticalFlip'
+        self.controller.trackSettings["flip"] = 'VerticalFlip'
 
     def setHorizontalFlip(self):
-        trackSettings["flip"] = 'HorizontalFlip'
+        self.controller.trackSettings["flip"] = 'HorizontalFlip'
 
     def setVerticalHorizontalFlip(self):
-        trackSettings["flip"] = 'VerticalHorizontalFlip'
+        self.controller.trackSettings["flip"] = 'VerticalHorizontalFlip'
 
     def set0Rotate(self):
-        trackSettings["rotate"] = 0
+        self.controller.trackSettings["rotate"] = 0
 
     def setPos90Rotate(self):
-        trackSettings["rotate"] = 90
+        self.controller.trackSettings["rotate"] = 90
 
     def setNeg90Rotate(self):
-        trackSettings["rotate"] = -90
+        self.controller.trackSettings["rotate"] = -90
 
     def set180Rotate(self):
-        trackSettings["rotate"] = 180
+        self.controller.trackSettings["rotate"] = 180
 
     def exitProg(self):
         if self.collect_images:
@@ -300,41 +190,41 @@ class Buttons:
         sys.exit()
 
     def filePicker(self):
-        trackSettings["orbitFile"] = filedialog.askopenfilename(initialdir=".", title="Select TLE file", filetypes=(
+        self.controller.trackSettings["orbitFile"] = filedialog.askopenfilename(initialdir=".", title="Select TLE file", filetypes=(
             ("text files", "*.txt"), ("tle files", "*.tle"), ("all files", "*.*")))
-        trackSettings["fileSelected"] = True
-        print(trackSettings["orbitFile"])
-        self.textbox.insert(END, str(str(trackSettings["orbitFile"]) + '\n'))
+        self.controller.trackSettings["fileSelected"] = True
+        print(self.controller.trackSettings["orbitFile"])
+        self.textbox.insert(END, str(str(self.controller.trackSettings["orbitFile"]) + '\n'))
         self.textbox.see('end')
 
     def set_center(self):
-        trackSettings["setcenter"] = True
+        self.controller.trackSettings["setcenter"] = True
 
     def setLX200AltAz(self):
-        trackSettings["telescopeType"] = 'LX200'
-        trackSettings["mountType"] = 'AltAz'
+        self.controller.trackSettings["telescopeType"] = 'LX200'
+        self.controller.trackSettings["mountType"] = 'AltAz'
 
     def setLX200Eq(self):
-        trackSettings["telescopeType"] = 'LX200'
-        trackSettings["mountType"] = 'Eq'
+        self.controller.trackSettings["telescopeType"] = 'LX200'
+        self.controller.trackSettings["mountType"] = 'Eq'
 
     def setFeatureTrack(self):
-        trackSettings["trackingtype"] = 'Features'
+        self.controller.trackSettings["trackingtype"] = 'Features'
 
     def setBrightTrack(self):
-        trackSettings["trackingtype"] = 'Bright'
+        self.controller.trackSettings["trackingtype"] = 'Bright'
 
     def setASCOMAltAz(self):
-        trackSettings["telescopeType"] = 'ASCOM'
-        trackSettings["mountType"] = 'AltAz'
+        self.controller.trackSettings["telescopeType"] = 'ASCOM'
+        self.controller.trackSettings["mountType"] = 'AltAz'
 
     def setASCOMEq(self):
-        trackSettings["telescopeType"] = 'ASCOM'
-        trackSettings["mountType"] = 'Eq'
+        self.controller.trackSettings["telescopeType"] = 'ASCOM'
+        self.controller.trackSettings["mountType"] = 'Eq'
 
     def toggleMountTracking(self):
-        if trackSettings["tracking"] is False:
-            trackSettings["tracking"] = True
+        if self.controller.trackSettings["tracking"] is False:
+            self.controller.trackSettings["tracking"] = True
             print('Connecting to Scope.')
             self.textbox.insert(END, 'Connecting to Scope.\n')
             self.textbox.see('end')
@@ -342,7 +232,7 @@ class Buttons:
             if status:
                 self.startButton5.configure(text='Disconnect Scope')
             else:
-                trackSettings["tracking"] = False
+                self.controller.trackSettings["tracking"] = False
             if msg:
                 print(msg)
                 self.textbox.insert(END, str(msg + '\n'))
@@ -353,26 +243,26 @@ class Buttons:
             self.textbox.insert(END, str('Disconnecting the scope.\n'))
             self.textbox.see('end')
             self.controller.disconnectMount()
-            trackSettings["tracking"] = False
+            self.controller.trackSettings["tracking"] = False
             self.startButton5.configure(text='Connect Scope')
 
     # noinspection PyUnusedLocal
     def goup(self, event):
-        trackSettings["mainviewY"] -= 1
+        self.controller.trackSettings["mainviewY"] -= 1
         self.imageCapture.incExposure()
 
     # noinspection PyUnusedLocal
     def godown(self, event):
-        trackSettings["mainviewY"] += 1
+        self.controller.trackSettings["mainviewY"] += 1
         self.imageCapture.decExposure()
 
     # noinspection PyUnusedLocal
     def goleft(self, event):
-        trackSettings["mainviewX"] -= 1
+        self.controller.trackSettings["mainviewX"] -= 1
 
     # noinspection PyUnusedLocal
     def goright(self, event):
-        trackSettings["mainviewX"] += 1
+        self.controller.trackSettings["mainviewX"] += 1
 
     def start_sat_track(self):
         pass
