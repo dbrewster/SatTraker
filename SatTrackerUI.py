@@ -30,6 +30,8 @@ class Buttons:
         self.controller.readConfig()
         self.imageCapture = None
         self.master = master
+
+        master.winfo_toplevel().title("SatTraker")
         master.protocol("WM_DELETE_WINDOW", self.onClose)
 
         master.geometry(str(self.controller.trackSettings["windowwidth"]) + "x" + str(self.controller.trackSettings["windowheight"]))
@@ -38,8 +40,6 @@ class Buttons:
 
         self.buttonFrame = Frame(master, height=32, bg="black")
         self.buttonFrame.pack(side=TOP, fill="x")
-        self.buttonFrame.rowconfigure(1, weight=1)
-        self.buttonFrame.columnconfigure(1, weight=1)
         self.buttonFrame.grid_propagate(False)
 
         startCamera = PILImage.open("./start_camera.png").resize((30, 30))
@@ -47,12 +47,19 @@ class Buttons:
         stopCamera = PILImage.open("./stop_camera.png").resize((30, 30))
         self.stopCameraButton = ImageTk.PhotoImage(stopCamera)
         self.startButton = Button(self.buttonFrame, image=self.startCameraButton, command=self.set_img_collect, highlightthickness=0, bd=0)
-        self.startButton.grid(row=0, column=0, sticky="e")
+        self.startButton.pack(anchor="e", padx=4, pady=4)
+
+        settingsFrame = Frame(master, width="24", background="white")
+        settingsFrame.pack(side=RIGHT, fill="y")
+
+        self.showSettingsImage = ImageTk.PhotoImage(PILImage.open("./settings.png").resize((22, 22)))
+        showSettingsBtn = Button(settingsFrame, image=self.showSettingsImage, command=self.popWindow, background="white", bd=0)
+        showSettingsBtn.pack(pady=14)
 
         self.collect_images = False
-        self.cameraFrame = Frame(master, borderwidth=1, background="blue")
-        master.winfo_toplevel().title("SatTraker")
+        self.cameraFrame = Frame(master, borderwidth=1, background="white")
         self.cameraFrame.pack(side=TOP, fill="both", expand=True)
+
         self.displayimg = Label(self.cameraFrame, highlightthickness=0, bd=0)
         self.displayimg.pack(side=TOP, fill="both", expand=True)
 
@@ -69,8 +76,6 @@ class Buttons:
         self.fileMenu.add_command(label='Select TLE File...', command=self.filePicker)
         self.fileMenu.add_separator()
         self.fileMenu.add_command(label='Exit and Save Configuration', command=self.exitProg)
-
-        self.fileMenu.add_command(label='Settings', command=self.popWindow)
 
         self.telescopeMenu = Menu(self.menu)
         self.menu.add_cascade(label='Telescope Type', menu=self.telescopeMenu)
@@ -96,7 +101,7 @@ class Buttons:
         self.imageMenu.add_command(label='Rotate Image 180 Degrees', command=self.set180Rotate)
 
     def popWindow(self):
-        SettingsPopup(self.controller)
+        SettingsPopup(self.master, self.controller)
 
     def onClose(self):
         self.controller.writeConfig()
@@ -234,65 +239,58 @@ class Buttons:
             self.collect_images = True
 
 
-class SettingsPopup(Toplevel):
-    def __init__(self, controller):
-        Toplevel.__init__(self)
+class SettingsPopup(Frame):
+    def __init__(self, parent, controller):
+        Frame.__init__(self, parent, background="#bbb", bd=1)
         self.controller = controller
-        self.geometry(str(400) + "x" + str(400))
+        self.place(anchor="ne", relx=1, y=50)
+        # self.geometry(str(400) + "x" + str(400))
 
-        label = Label(self, text='Working')
-        label.pack(fill='x', padx=50, pady=5)
-        buttonClose = Button(self, text='Close', command=self.destroy)
-        buttonClose.pack(fill='x')
-        bottomframe1 = Frame(self)
+        whiteframe = Frame(self)
+        whiteframe.pack(fill="both", expand=2, padx=1, pady=1)
+
+        self.closeBtn = ImageTk.PhotoImage(PILImage.open("./close_btn.png").resize((8, 8)))
+        buttonClose = Button(whiteframe, image=self.closeBtn, command=self.closeSettings)
+        buttonClose.pack(anchor="w")
+        # buttonClose.place(anchor="nw")
+
+        bottomframe1 = Frame(whiteframe)
         bottomframe1.pack(side=BOTTOM)
 
-        labelLat = Label(bottomframe1, text='Latitude (N+)')
-        labelLat.grid(row=5, column=0)
-        self.latVal = DoubleVar()
-        self.latVal.set(self.controller.trackSettings["Lat"])
-        entryLat = Entry(bottomframe1, textvariable=self.latVal)
-        entryLat.grid(row=5, column=1)
-        labelLon = Label(bottomframe1, text='Longitude (E+)')
-        labelLon.grid(row=6, column=0)
-        self.lonVal = DoubleVar()
-        self.lonVal.set(self.controller.trackSettings["Lon"])
-        entryLon = Entry(bottomframe1, textvariable=self.lonVal)
-        entryLon.grid(row=6, column=1)
+        CameraLabel = Label(bottomframe1, text='Camera Number')
+        CameraLabel.grid(row=1, column=0)
+        self.camNumber = IntVar()
+        entryCam = Entry(bottomframe1, textvariable=self.camNumber)
+        entryCam.grid(row=1, column=1)
+        self.camNumber.set(self.controller.trackSettings["camera"])
+        self.camNumber.trace("w", self.setCamera)
 
-        self.latVal.trace("w", self.setLat)
-        self.lonVal.trace("w", self.setLon)
-
-        # self.labelBright = Label(self.bottomframe, text='Minimum Brightness')
-        # self.labelBright.grid(row=8, column = 0)
-        # self.entryBright = Entry(self.bottomframe)
-        # self.entryBright.grid(row = 8, column = 1)
-
-        # self.entryBright.insert(0, trackSettings["minbright"])
-        # startButton2 = Button(bottomframe1, text='Camera Calibration', command=self.start_calibration)
-        # startButton2.grid(row=4, column=0)
-        # startButton3 = Button(bottomframe1, text='Set Center Point', command=self.set_center)
-        # startButton3.grid(row=4, column=1)
-        # startButton4 = Button(bottomframe1, text='Start Tracking Satellite', command=self.start_sat_track)
-        # startButton4.grid(row=7, column=1)
-        # startButton5 = Button(bottomframe1, text='Connect Scope', command=self.toggleMountTracking)
-        # startButton5.grid(row=1, column=1)
         ComLabel = Label(bottomframe1, text='COM Port')
         ComLabel.grid(row=2, column=0)
         self.comNumber = IntVar()
         entryCom = Entry(bottomframe1, textvariable=self.comNumber)
         entryCom.grid(row=2, column=1)
-
         self.comNumber.set(self.controller.trackSettings["comPort"])
         self.comNumber.trace("w", self.setComPort)
 
-        CameraLabel = Label(bottomframe1, text='Camera Number')
-        CameraLabel.grid(row=3, column=0)
-        self.camNumber = IntVar()
-        entryCam = Entry(bottomframe1, textvariable=self.camNumber)
-        entryCam.grid(row=3, column=1)
-        self.camNumber.set(self.controller.trackSettings["camera"])
-        self.camNumber.trace("w", self.setCamera)
+        labelLat = Label(bottomframe1, text='Latitude (N+)')
+        labelLat.grid(row=3, column=0)
+        self.latVal = DoubleVar()
+        self.latVal.set(self.controller.trackSettings["Lat"])
+        self.latVal.trace("w", self.setLat)
+        entryLat = Entry(bottomframe1, textvariable=self.latVal)
+        entryLat.grid(row=3, column=1)
+
+        labelLon = Label(bottomframe1, text='Longitude (E+)')
+        labelLon.grid(row=4, column=0)
+        self.lonVal = DoubleVar()
+        self.lonVal.set(self.controller.trackSettings["Lon"])
+        self.lonVal.trace("w", self.setLon)
+        entryLon = Entry(bottomframe1, textvariable=self.lonVal)
+        entryLon.grid(row=4, column=1)
+
+    def closeSettings(self):
+        self.destroy()
 
     # noinspection PyUnusedLocal
     def setLat(self, *args):
