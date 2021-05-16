@@ -136,7 +136,6 @@ class Buttons:
         self.imageMenu.add_command(label='Rotate Image -90 Degrees', command=self.setNeg90Rotate)
         self.imageMenu.add_command(label='Rotate Image 180 Degrees', command=self.set180Rotate)
 
-
     def onClose(self):
         self.controller.writeConfig()
         self.master.destroy()
@@ -303,13 +302,13 @@ class Buttons:
         self.labelLat = Label(self.bottomframe1, text='Latitude (N+)')
         self.labelLat.grid(row=5, column=0)
         self.latVal = DoubleVar()
-        self.latVal.set(trackSettings["Lat"])
+        self.latVal.set(self.controller.trackSettings["Lat"])
         self.entryLat = Entry(self.bottomframe1, textvariable=self.latVal)
         self.entryLat.grid(row=5, column=1)
         self.labelLon = Label(self.bottomframe1, text='Longitude (E+)')
         self.labelLon.grid(row=6, column=0)
         self.lonVal = DoubleVar()
-        self.lonVal.set(trackSettings["Lon"])
+        self.lonVal.set(self.controller.trackSettings["Lon"])
         self.entryLon = Entry(self.bottomframe1, textvariable=self.lonVal)
         self.entryLon.grid(row=6, column=1)
 
@@ -339,7 +338,7 @@ class Buttons:
         self.entryCom.grid(row=2, column=1)
         self.textbox = Text(self.textframe, height=4, width=100)
         self.textbox.grid(row=1, column=0)
-        self.comNumber.set(trackSettings["comPort"])
+        self.comNumber.set(self.controller.trackSettings["comPort"])
         self.comNumber.trace("w", self.setComPort)
 
         self.CameraLabel = Label(self.bottomframe1, text='Camera Number')
@@ -347,9 +346,8 @@ class Buttons:
         self.camNumber = IntVar()
         self.entryCam = Entry(self.bottomframe1, textvariable=self.camNumber)
         self.entryCam.grid(row=3, column=1)
-        self.camNumber.set(trackSettings["camera"])
+        self.camNumber.set(self.controller.trackSettings["camera"])
         self.camNumber.trace("w", self.setCamera)
-
 
 
 class ImageRenderer(ImageCapture.ImageObserver):
