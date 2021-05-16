@@ -35,6 +35,7 @@ class Controller:
         "foundtarget": False,
         "rotate": 0,
         "calibratestart": False,
+        "displayFPS": 10
     }
 
     def __init__(self):
@@ -53,7 +54,7 @@ class Controller:
     def readConfig(self):
         try:
             with open("Satconfig.json", "r") as json_file:
-                self.trackSettings = json.load(json_file)
+                self.trackSettings.update(json.load(json_file))
         except:
             print('Config file not present or corrupted.')
 
