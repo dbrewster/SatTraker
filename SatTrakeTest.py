@@ -1,23 +1,15 @@
+import json
+import sys
 from tkinter import *
 from tkinter import filedialog
-import ephem
-import math
-import os
+
 import cv2
-import numpy as np
-import sys
-import time
-import datetime
-import re
-import json
 import geocoder
+import numpy as np
 import serial
-import io
-import threading
 import win32com.client
-import imutils
 from PIL import Image as PILImage, ImageTk
-from urllib.request import urlopen
+
 import ImageCapture
 
 
@@ -146,7 +138,7 @@ class Buttons:
     def __init__(self, master):
         self.controller = Controller()
         self.controller.readConfig()
-
+        self.imageCapture = None
         self.master = master
         master.protocol("WM_DELETE_WINDOW", self.onClose)
 
@@ -256,19 +248,24 @@ class Buttons:
         self.controller.writeConfig()
         self.master.destroy()
 
+    # noinspection PyUnusedLocal
     def setWindowSize(self, *args):
         trackSettings["windowwidth"] = self.master.winfo_width()
         trackSettings["windowheight"] = self.master.winfo_height()
 
+    # noinspection PyUnusedLocal
     def setLat(self, *args):
         trackSettings["Lat"] = varGetOrDefault(self.latVal, 0.0)
 
+    # noinspection PyUnusedLocal
     def setLon(self, *args):
         trackSettings["Lon"] = varGetOrDefault(self.lonVal, 0.0)
 
+    # noinspection PyUnusedLocal
     def setComPort(self, *args):
         trackSettings["comPort"] = varGetOrDefault(self.comNumber, 0)
 
+    # noinspection PyUnusedLocal
     def setCamera(self, *args):
         trackSettings["camera"] = varGetOrDefault(self.camNumber, 0)
 
@@ -304,7 +301,7 @@ class Buttons:
 
     def filePicker(self):
         trackSettings["orbitFile"] = filedialog.askopenfilename(initialdir=".", title="Select TLE file", filetypes=(
-        ("text files", "*.txt"), ("tle files", "*.tle"), ("all files", "*.*")))
+            ("text files", "*.txt"), ("tle files", "*.tle"), ("all files", "*.*")))
         trackSettings["fileSelected"] = True
         print(trackSettings["orbitFile"])
         self.textbox.insert(END, str(str(trackSettings["orbitFile"]) + '\n'))
@@ -359,17 +356,21 @@ class Buttons:
             trackSettings["tracking"] = False
             self.startButton5.configure(text='Connect Scope')
 
+    # noinspection PyUnusedLocal
     def goup(self, event):
         trackSettings["mainviewY"] -= 1
         self.imageCapture.incExposure()
 
+    # noinspection PyUnusedLocal
     def godown(self, event):
         trackSettings["mainviewY"] += 1
         self.imageCapture.decExposure()
 
+    # noinspection PyUnusedLocal
     def goleft(self, event):
         trackSettings["mainviewX"] -= 1
 
+    # noinspection PyUnusedLocal
     def goright(self, event):
         trackSettings["mainviewX"] += 1
 
@@ -392,7 +393,6 @@ class Buttons:
             options.cameraNum = self.camNumber.get()
             self.startButton.configure(text='Stop Camera')
             self.imageCapture = ImageCapture.ImageCapture(options)
-            print("label width: ", self.displayimg.winfo_height())
             self.imageCapture.addObserver(ImageRenderer(self.displayimg, self.topframe))
             self.imageCapture.startCaputure()
             self.collect_images = True
