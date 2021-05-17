@@ -1,8 +1,6 @@
 import json
 from typing import List
 from abc import ABC, abstractmethod
-import serial
-import win32com.client
 
 
 class SettingsObserver(ABC):
@@ -53,16 +51,7 @@ class Controller:
 
     def __init__(self):
         # geolocation = geocoder.ip('me')
-
-        # LX200 specific variables
-        self.ser = None
-        self.serialconnected = False
-
-        # Ascom specific vars
-        self.x = None
-        self.tel = None
-        self.axis0rate = 0.0
-        self.axis1rate = 0.0
+        pass
 
     def addObserver(self, param, observer):
         if param not in self._listeners:
@@ -98,50 +87,3 @@ class Controller:
     def writeConfig(self):
         with open("Satconfig.json", "w") as json_file:
             json.dump(self._trackSettings, json_file, indent=4, sort_keys=True)
-
-    # noinspection PyUnresolvedReferences
-    def connectMount(self):
-        if self._trackSettings["telescopeType"] == 'LX200':
-            com_port = str('COM' + str(self._trackSettings["comPort"]))
-            try:
-                self.ser = serial.Serial(com_port, baudrate=9600, timeout=1, bytesize=serial.EIGHTBITS,
-                                         parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE, xonxoff=False,
-                                         rtscts=False)
-                self.ser.write(str.encode(':U#'))
-                self.serialconnected = True
-                return True, ""
-            except:
-                print('Failed to connect on ' + com_port)
-                return False, 'Failed to connect on ' + str(com_port)
-        elif self._trackSettings["telescopeType"] == 'ASCOM':
-            self.x = win32com.client.Dispatch("ASCOM.Utilities.Chooser")
-            self.x.DeviceType = 'Telescope'
-            driver_name = self.x.Choose("None")
-            self.tel = win32com.client.Dispatch(driver_name)
-            if self.tel.Connected:
-                return True, "Telescope was already connected"
-            else:
-                self.tel.Connected = True
-                if self.tel.Connected:
-                    axis = self.tel.CanMoveAxis(0)
-                    axis2 = self.tel.CanMoveAxis(1)
-                    if axis is False or axis2 is False:
-                        self.tel.Connected = False
-                        return False, 'This scope cannot use the MoveAxis method, aborting.'
-                    else:
-                        self.axis0rate = float(self.tel.AxisRates(0).Item(1).Maximum)
-                        self.axis1rate = float(self.tel.AxisRates(1).Item(1).Maximum)
-                        return True, 'Axis 0 max rate: ' + str(self.axis0rate) + ' Axis 1 max rate: ' + \
-                            str(self.axis1rate)
-                else:
-                    return False, "Unable to connect to telescope, expect exception"
-
-    def disconnectMount(self):
-        if self._trackSettings["telescopeType"] == 'LX200' and self.serialconnected is True:
-            self.ser.write(str.encode(':Q#'))
-            self.ser.write(str.encode(':U#'))
-            self.ser.close()
-            self.serialconnected = False
-        elif self._trackSettings["telescopeType"] == 'ASCOM':
-            self.tel.AbortSlew()
-            self.tel.Connected = False

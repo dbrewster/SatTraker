@@ -8,6 +8,7 @@ from PIL import Image as PILImage, ImageTk
 import ImageCapture
 from Controller import Controller
 from SettingsPopup import SettingsPopup
+from Mount import AscomEQ
 
 
 def blankImage(width, height):
@@ -25,6 +26,7 @@ class Buttons:
         self.imageCapture = None
         self.master = master
         self.listener = None
+        self.mount = None
 
         master.winfo_toplevel().title("SatTraker")
         master.protocol("WM_DELETE_WINDOW", self.onClose)
@@ -37,12 +39,21 @@ class Buttons:
         self.buttonFrame.pack(side=TOP, fill="x")
         self.buttonFrame.grid_propagate(False)
 
+        buttons = Frame(self.buttonFrame, bg="black")
+        buttons.pack(side=TOP, anchor='e')
         startCamera = PILImage.open("./start_camera.png").resize((30, 30))
         self.startCameraButton = ImageTk.PhotoImage(startCamera)
         stopCamera = PILImage.open("./stop_camera.png").resize((30, 30))
         self.stopCameraButton = ImageTk.PhotoImage(stopCamera)
-        self.startButton = Button(self.buttonFrame, image=self.startCameraButton, command=self.set_img_collect, highlightthickness=0, bd=0)
-        self.startButton.pack(anchor="e", padx=4, pady=4)
+        self.startButton = Button(buttons, image=self.startCameraButton, command=self.set_img_collect, highlightthickness=0, bd=0)
+        self.startButton.grid(row=0, column=0, padx=4, pady=4)
+
+        connectMount = PILImage.open("./connect_mount.png").resize((30, 30))
+        self.connectMountImg = ImageTk.PhotoImage(connectMount)
+        disconnectMount = PILImage.open("./disconnect_mount.png").resize((30, 30))
+        self.disconnectMountImg = ImageTk.PhotoImage(disconnectMount)
+        self.mountButton = Button(buttons, image=self.connectMountImg, command=self.connectMount, highlightthickness=0, bd=0)
+        self.mountButton.grid(row=0, column=1, padx=4, pady=4)
 
         self.fpsElement = Label(self.buttonFrame, fg="white", bg="black", highlightthickness=0, bd=0)
         self.fpsElement.place(x=5, y=8)
@@ -76,11 +87,6 @@ class Buttons:
         self.fileMenu.add_command(label='Exit and Save Configuration', command=self.exitProg)
 
         self.telescopeMenu = Menu(self.menu)
-        self.menu.add_cascade(label='Telescope Type', menu=self.telescopeMenu)
-        self.telescopeMenu.add_command(label='LX200 Classic Alt/Az', command=self.setLX200AltAz)
-        self.telescopeMenu.add_command(label='LX200 Classic Equatorial', command=self.setLX200Eq)
-        self.telescopeMenu.add_command(label='ASCOM Alt/Az', command=self.setASCOMAltAz)
-        self.telescopeMenu.add_command(label='ASCOM Equatorial', command=self.setASCOMEq)
 
         self.trackingMenu = Menu(self.menu)
         self.menu.add_cascade(label='Tracking Type', menu=self.trackingMenu)
@@ -170,30 +176,6 @@ class Buttons:
         self.controller.set("telescopeType", 'ASCOM')
         self.controller.set("mountType", 'Eq')
 
-    def toggleMountTracking(self):
-        if self.controller.get("tracking") is False:
-            self.controller.set("tracking", True)
-            print('Connecting to Scope.')
-            self.textbox.insert(END, 'Connecting to Scope.\n')
-            self.textbox.see('end')
-            status, msg = self.controller.connectMount()
-            if status:
-                self.startButton5.configure(text='Disconnect Scope')
-            else:
-                self.controller.set("tracking", False)
-            if msg:
-                print(msg)
-                self.textbox.insert(END, str(msg + '\n'))
-                self.textbox.see('end')
-
-        else:
-            print('Disconnecting the Scope.')
-            self.textbox.insert(END, str('Disconnecting the scope.\n'))
-            self.textbox.see('end')
-            self.controller.disconnectMount()
-            self.controller.set("tracking", False)
-            self.startButton5.configure(text='Connect Scope')
-
     # noinspection PyUnusedLocal
     def goup(self, event):
         pass
@@ -215,6 +197,19 @@ class Buttons:
     def goright(self, event):
         # self.controller.get("mainviewX") += 1
         pass
+
+    def connectMount(self):
+        if self.mount:
+            self.mount.disconnect()
+            self.mount = None
+            self.mountButton.config(image=self.connectMountImg)
+        else:
+            self.mount = AscomEQ()
+            if not self.mount.connect():
+                print("Could not connect mount")
+                self.mount = None
+            else:
+                self.mountButton.config(image=self.disconnectMountImg)
 
     def start_sat_track(self):
         pass
