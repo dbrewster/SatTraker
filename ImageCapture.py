@@ -6,6 +6,8 @@ import time
 import imutils
 import numpy as np
 
+import Controller
+
 
 class ImageOptions:
     cameraNum: int = 0
@@ -13,6 +15,7 @@ class ImageOptions:
     flipVertical: bool = False
     rotate: int = 0
     captureRateInMS: int = 1.0/60.0
+    exposure: float = -3
 
 
 class Image:
@@ -38,13 +41,13 @@ class ImageObserver(ABC):
 class ImageCapture:
     _observers: List[ImageObserver] = []
 
-    def __init__(self, options: ImageOptions) -> None:
+    def __init__(self, controller: Controller) -> None:
         super().__init__()
         self.cap = None
-        self.options = options
+        self.controller = controller
         self.capturing = False
-        self.exposure = -2.2
         self.currentExposure = 0
+        self.currentGain = 0
 
     def startCaputure(self):
         self.capturing = True
@@ -54,14 +57,8 @@ class ImageCapture:
     def stopCapture(self):
         self.capturing = False
 
-    def incExposure(self):
-        self.exposure = self.exposure + 1
-
-    def decExposure(self):
-        self.exposure = self.exposure - 1
-
     def processImage(self):
-        self.cap = cv2.VideoCapture(self.options.cameraNum, cv2.CAP_DSHOW)
+        self.cap = cv2.VideoCapture(self.controller.get("camera"), cv2.CAP_DSHOW)
         cam = self.cap
         cam.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
         cam.set(cv2.CAP_PROP_FRAME_HEIGHT, 960)
@@ -81,24 +78,31 @@ class ImageCapture:
         lastCapture = 0
         while self.capturing:
             ret, img = self.cap.read()
-            if self.exposure != self.currentExposure:
-                if self.exposure == 0:
-                    print("Setting camera back to auto exposure")
-                    self.cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 0.75)
+            exposure = self.controller.get("exposure")
+            if exposure != self.currentExposure:
+                if exposure > 0:
+                    str_val = str(pow(2, exposure))
                 else:
-                    print("Setting to exposure " + str(pow(2, self.exposure)) if self.exposure > 0 else ("1/" + str(pow(2, -self.exposure))))
-                    self.cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 0.25)
-                    self.cap.set(cv2.CAP_PROP_EXPOSURE, self.exposure)
-                self.currentExposure = self.exposure
+                    str_val = "1/" + str(pow(2, -exposure))
+                print("Setting to exposure " + str_val)
+                self.cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 0.25)
+                self.cap.set(cv2.CAP_PROP_EXPOSURE, exposure)
+                self.currentExposure = exposure
+
+            gain = self.controller.get("gain")
+            if gain != self.currentGain:
+                print("Setting to gain " + str(gain))
+                self.cap.set(cv2.CAP_PROP_GAIN, gain)
+                self.currentGain = gain
 
             if ret:
-                if self.options.flipVertical and self.options.flipHorizontal:
+                if self.controller.get("flipVertical") and self.controller.get("flipHorizontal"):
                     img = cv2.flip(img, 0)
-                elif self.options.flipHorizontal:
+                elif self.controller.get("flipHorizontal"):
                     img = cv2.flip(img, 1)
-                elif self.options.flipVertical:
+                elif self.controller.get("flipVertical"):
                     img = cv2.flip(img, -1)
-                img = imutils.rotate(img, self.options.rotate)
+                img = imutils.rotate(img, self.controller.get("rotate"))
                 currentTime = time.time()
                 timeSinceLastCapture = currentTime - lastCapture
                 lastCapture = currentTime

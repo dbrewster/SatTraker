@@ -7,6 +7,7 @@ from PIL import Image as PILImage, ImageTk
 
 import ImageCapture
 from Controller import Controller
+from SettingsPopup import SettingsPopup
 
 
 def blankImage(width, height):
@@ -16,13 +17,6 @@ def blankImage(width, height):
     return local_tkimg
 
 
-def varGetOrDefault(var, default):
-    try:
-        return var.get()
-    except:
-        return default
-
-
 # noinspection PyPep8Naming,PyMethodMayBeStatic,SpellCheckingInspection
 class Buttons:
     def __init__(self, master):
@@ -30,11 +24,12 @@ class Buttons:
         self.controller.readConfig()
         self.imageCapture = None
         self.master = master
+        self.listener = None
 
         master.winfo_toplevel().title("SatTraker")
         master.protocol("WM_DELETE_WINDOW", self.onClose)
 
-        master.geometry(str(self.controller.trackSettings["windowwidth"]) + "x" + str(self.controller.trackSettings["windowheight"]))
+        master.geometry(str(self.controller.get("windowwidth")) + "x" + str(self.controller.get("windowheight")))
 
         master.bind("<Configure>", self.setWindowSize)
 
@@ -48,6 +43,9 @@ class Buttons:
         self.stopCameraButton = ImageTk.PhotoImage(stopCamera)
         self.startButton = Button(self.buttonFrame, image=self.startCameraButton, command=self.set_img_collect, highlightthickness=0, bd=0)
         self.startButton.pack(anchor="e", padx=4, pady=4)
+
+        self.fpsElement = Label(self.buttonFrame, fg="white", bg="black", highlightthickness=0, bd=0)
+        self.fpsElement.place(x=5, y=8)
 
         settingsFrame = Frame(master, width="24", background="white")
         settingsFrame.pack(side=RIGHT, fill="y")
@@ -109,32 +107,32 @@ class Buttons:
 
     # noinspection PyUnusedLocal
     def setWindowSize(self, *args):
-        self.controller.trackSettings["windowwidth"] = self.master.winfo_width()
-        self.controller.trackSettings["windowheight"] = self.master.winfo_height()
+        self.controller.set("windowwidth", self.master.winfo_width())
+        self.controller.set("windowheight", self.master.winfo_height())
 
     def setNoFlip(self):
-        self.controller.trackSettings["flip"] = 'NoFlip'
+        self.controller.set("flip", 'NoFlip')
 
     def setVerticalFlip(self):
-        self.controller.trackSettings["flip"] = 'VerticalFlip'
+        self.controller.set("flip", 'VerticalFlip')
 
     def setHorizontalFlip(self):
-        self.controller.trackSettings["flip"] = 'HorizontalFlip'
+        self.controller.set("flip", 'HorizontalFlip')
 
     def setVerticalHorizontalFlip(self):
-        self.controller.trackSettings["flip"] = 'VerticalHorizontalFlip'
+        self.controller.set("flip", 'VerticalHorizontalFlip')
 
     def set0Rotate(self):
-        self.controller.trackSettings["rotate"] = 0
+        self.controller.set("rotate", 0)
 
     def setPos90Rotate(self):
-        self.controller.trackSettings["rotate"] = 90
+        self.controller.set("rotate", 90)
 
     def setNeg90Rotate(self):
-        self.controller.trackSettings["rotate"] = -90
+        self.controller.set("rotate", -90)
 
     def set180Rotate(self):
-        self.controller.trackSettings["rotate"] = 180
+        self.controller.set("rotate", 180)
 
     def exitProg(self):
         if self.collect_images:
@@ -143,39 +141,38 @@ class Buttons:
         sys.exit()
 
     def filePicker(self):
-        self.controller.trackSettings["orbitFile"] = filedialog.askopenfilename(initialdir=".", title="Select TLE file", filetypes=(
-            ("text files", "*.txt"), ("tle files", "*.tle"), ("all files", "*.*")))
-        self.controller.trackSettings["fileSelected"] = True
-        print(self.controller.trackSettings["orbitFile"])
+        self.controller.set("orbitFile", filedialog.askopenfilename(initialdir=".", title="Select TLE file", filetypes=(("text files", "*.txt"), ("tle files", "*.tle"), ("all files", "*.*"))))
+        self.controller.set("fileSelected", True)
+        print(self.controller.get("orbitFile"))
 
     def set_center(self):
-        self.controller.trackSettings["setcenter"] = True
+        self.controller.set("setcenter", True)
 
     def setLX200AltAz(self):
-        self.controller.trackSettings["telescopeType"] = 'LX200'
-        self.controller.trackSettings["mountType"] = 'AltAz'
+        self.controller.set("telescopeType", 'LX200')
+        self.controller.set("mountType", 'AltAz')
 
     def setLX200Eq(self):
-        self.controller.trackSettings["telescopeType"] = 'LX200'
-        self.controller.trackSettings["mountType"] = 'Eq'
+        self.controller.set("telescopeType", 'LX200')
+        self.controller.set("mountType", 'Eq')
 
     def setFeatureTrack(self):
-        self.controller.trackSettings["trackingtype"] = 'Features'
+        self.controller.set("trackingtype", 'Features')
 
     def setBrightTrack(self):
-        self.controller.trackSettings["trackingtype"] = 'Bright'
+        self.controller.set("trackingtype", 'Bright')
 
     def setASCOMAltAz(self):
-        self.controller.trackSettings["telescopeType"] = 'ASCOM'
-        self.controller.trackSettings["mountType"] = 'AltAz'
+        self.controller.set("telescopeType", 'ASCOM')
+        self.controller.set("mountType", 'AltAz')
 
     def setASCOMEq(self):
-        self.controller.trackSettings["telescopeType"] = 'ASCOM'
-        self.controller.trackSettings["mountType"] = 'Eq'
+        self.controller.set("telescopeType", 'ASCOM')
+        self.controller.set("mountType", 'Eq')
 
     def toggleMountTracking(self):
-        if self.controller.trackSettings["tracking"] is False:
-            self.controller.trackSettings["tracking"] = True
+        if self.controller.get("tracking") is False:
+            self.controller.set("tracking", True)
             print('Connecting to Scope.')
             self.textbox.insert(END, 'Connecting to Scope.\n')
             self.textbox.see('end')
@@ -183,7 +180,7 @@ class Buttons:
             if status:
                 self.startButton5.configure(text='Disconnect Scope')
             else:
-                self.controller.trackSettings["tracking"] = False
+                self.controller.set("tracking", False)
             if msg:
                 print(msg)
                 self.textbox.insert(END, str(msg + '\n'))
@@ -194,26 +191,30 @@ class Buttons:
             self.textbox.insert(END, str('Disconnecting the scope.\n'))
             self.textbox.see('end')
             self.controller.disconnectMount()
-            self.controller.trackSettings["tracking"] = False
+            self.controller.set("tracking", False)
             self.startButton5.configure(text='Connect Scope')
 
     # noinspection PyUnusedLocal
     def goup(self, event):
-        self.controller.trackSettings["mainviewY"] -= 1
-        self.imageCapture.incExposure()
+        pass
+        # self.controller.trackSettings["mainviewY"] -= 1
+        # self.imageCapture.incExposure()
 
     # noinspection PyUnusedLocal
     def godown(self, event):
-        self.controller.trackSettings["mainviewY"] += 1
-        self.imageCapture.decExposure()
+        pass
+        # self.controller.trackSettings["mainviewY"] += 1
+        # self.imageCapture.decExposure()
 
     # noinspection PyUnusedLocal
     def goleft(self, event):
-        self.controller.trackSettings["mainviewX"] -= 1
+        # self.controller.get("mainviewX") -= 1
+        pass
 
     # noinspection PyUnusedLocal
     def goright(self, event):
-        self.controller.trackSettings["mainviewX"] += 1
+        # self.controller.get("mainviewX") += 1
+        pass
 
     def start_sat_track(self):
         pass
@@ -226,104 +227,38 @@ class Buttons:
 
     def set_img_collect(self):
         if self.collect_images:
+            self.listener = None
             self.startButton.configure(image=self.startCameraButton)
             self.imageCapture.stopCapture()
             self.collect_images = False
         else:
-            options = ImageCapture.ImageOptions()
-            options.cameraNum = self.controller.trackSettings["camera"]
             self.startButton.configure(image=self.stopCameraButton)
-            self.imageCapture = ImageCapture.ImageCapture(options)
-            self.imageCapture.addObserver(ImageRenderer(self.displayimg, self.cameraFrame, self.controller.trackSettings["displayFPS"]))
+            self.imageCapture = ImageCapture.ImageCapture(self.controller)
+
+            self.imageCapture.addObserver(ImageRenderer(self.displayimg, self.fpsElement, self.cameraFrame, self.controller))
             self.imageCapture.startCaputure()
             self.collect_images = True
 
 
-class SettingsPopup(Frame):
-    def __init__(self, parent, controller):
-        Frame.__init__(self, parent, background="#bbb", bd=1)
-        self.controller = controller
-        self.place(anchor="ne", relx=1, y=50)
-        # self.geometry(str(400) + "x" + str(400))
-
-        whiteframe = Frame(self)
-        whiteframe.pack(fill="both", expand=2, padx=1, pady=1)
-
-        self.closeBtn = ImageTk.PhotoImage(PILImage.open("./close_btn.png").resize((8, 8)))
-        buttonClose = Button(whiteframe, image=self.closeBtn, command=self.closeSettings)
-        buttonClose.pack(anchor="w")
-        # buttonClose.place(anchor="nw")
-
-        bottomframe1 = Frame(whiteframe)
-        bottomframe1.pack(side=BOTTOM)
-
-        CameraLabel = Label(bottomframe1, text='Camera Number')
-        CameraLabel.grid(row=1, column=0)
-        self.camNumber = IntVar()
-        entryCam = Entry(bottomframe1, textvariable=self.camNumber)
-        entryCam.grid(row=1, column=1)
-        self.camNumber.set(self.controller.trackSettings["camera"])
-        self.camNumber.trace("w", self.setCamera)
-
-        ComLabel = Label(bottomframe1, text='COM Port')
-        ComLabel.grid(row=2, column=0)
-        self.comNumber = IntVar()
-        entryCom = Entry(bottomframe1, textvariable=self.comNumber)
-        entryCom.grid(row=2, column=1)
-        self.comNumber.set(self.controller.trackSettings["comPort"])
-        self.comNumber.trace("w", self.setComPort)
-
-        labelLat = Label(bottomframe1, text='Latitude (N+)')
-        labelLat.grid(row=3, column=0)
-        self.latVal = DoubleVar()
-        self.latVal.set(self.controller.trackSettings["Lat"])
-        self.latVal.trace("w", self.setLat)
-        entryLat = Entry(bottomframe1, textvariable=self.latVal)
-        entryLat.grid(row=3, column=1)
-
-        labelLon = Label(bottomframe1, text='Longitude (E+)')
-        labelLon.grid(row=4, column=0)
-        self.lonVal = DoubleVar()
-        self.lonVal.set(self.controller.trackSettings["Lon"])
-        self.lonVal.trace("w", self.setLon)
-        entryLon = Entry(bottomframe1, textvariable=self.lonVal)
-        entryLon.grid(row=4, column=1)
-
-    def closeSettings(self):
-        self.destroy()
-
-    # noinspection PyUnusedLocal
-    def setLat(self, *args):
-        self.controller.trackSettings["Lat"] = varGetOrDefault(self.latVal, 0.0)
-
-    # noinspection PyUnusedLocal
-    def setLon(self, *args):
-        self.controller.trackSettings["Lon"] = varGetOrDefault(self.lonVal, 0.0)
-
-    # noinspection PyUnusedLocal
-    def setComPort(self, *args):
-        self.controller.trackSettings["comPort"] = varGetOrDefault(self.comNumber, 0)
-
-    # noinspection PyUnusedLocal
-    def setCamera(self, *args):
-        self.controller.trackSettings["camera"] = varGetOrDefault(self.camNumber, 0)
-
-
 class ImageRenderer(ImageCapture.ImageObserver):
-    def __init__(self, imageElement, parent, displayFPS) -> None:
+    def __init__(self, imageElement, fpsElement, parent, controller) -> None:
         super().__init__()
         self.imageElement = imageElement
         self.lastUpdate = 0
         self.lastUIUpdate = 0
         self.framesCaptured = 0
         self.parent = parent
-        self.displayFPS = displayFPS
+        self.controller = controller
+        self.fpsElement = fpsElement
 
     def processingStarted(self) -> None:
         pass
 
     def imageCaptured(self, img: ImageCapture.Image) -> None:
-        if img.captureTime - self.lastUIUpdate > 1/self.displayFPS:
+        displayFPS = self.controller.get("refreshRate")
+        if displayFPS < 1:
+            displayFPS = 1
+        if img.captureTime - self.lastUIUpdate > 1/displayFPS:
             self.lastUIUpdate = img.captureTime
             local_img = img.img
             e_width = self.parent.winfo_width() - 2
@@ -343,13 +278,15 @@ class ImageRenderer(ImageCapture.ImageObserver):
 
         self.framesCaptured += 1
         if img.captureTime - self.lastUpdate > 1:
-            print("frames per sec = " + str(self.framesCaptured / (img.captureTime - self.lastUpdate)))
+            self.fpsElement.config(text="FPS: {:.3f}".format(self.framesCaptured / (img.captureTime - self.lastUpdate)))
+            # print("frames per sec = " + str(self.framesCaptured / (img.captureTime - self.lastUpdate)))
             self.framesCaptured = 0
             self.lastUpdate = img.captureTime
 
     def processingDone(self) -> None:
         self.imageElement.config(image="")
         self.imageElement.pack(side=TOP, fill="both", expand=True)
+        self.fpsElement.config(text="")
 
 
 root = Tk()

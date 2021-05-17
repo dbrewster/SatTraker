@@ -1,12 +1,19 @@
 import json
-
+from typing import List
+from abc import ABC, abstractmethod
 import serial
 import win32com.client
 
 
+class SettingsObserver(ABC):
+    @abstractmethod
+    def valueChanged(self, param, oldValue, newValue) -> None:
+        pass
+
+
 # noinspection SpellCheckingInspection
 class Controller:
-    trackSettings = {
+    _trackSettings = {
         "windowwidth": 800,
         "windowheight": 600,
         "objectfollow": False,
@@ -31,12 +38,18 @@ class Controller:
         "minbright": 50,
         "clickpixel": 0,
         "maxpixel": 255,
-        "flip": 'NoFlip',
+        "flipHorizontal": False,
+        "flipVertical": False,
         "foundtarget": False,
         "rotate": 0,
         "calibratestart": False,
-        "displayFPS": 10
+        "displayFPS": 10,
+        "exposure": -3,
+        "gain": 0,
+        "refreshRate": 20
     }
+
+    _listeners = {}
 
     def __init__(self):
         # geolocation = geocoder.ip('me')
@@ -51,21 +64,45 @@ class Controller:
         self.axis0rate = 0.0
         self.axis1rate = 0.0
 
+    def addObserver(self, param, observer):
+        if param not in self._listeners:
+            inner_list: List[SettingsObserver] = []
+            self._listeners[param] = inner_list
+        else:
+            inner_list = self._listeners[param]
+            
+        inner_list.append(observer)
+
+    def removeObserver(self, param, listener):
+        if param in self._listeners:
+            self._listeners[param].remove(listener)
+
+    def set(self, param, value):
+        old_value = self._trackSettings[param]
+        if value != old_value:
+            self._trackSettings[param] = value
+            if param in self._listeners:
+                for observer in self._listeners[param]:
+                    observer.valueChanged(param, old_value, value)
+
+    def get(self, param):
+        return self._trackSettings[param]
+
     def readConfig(self):
         try:
             with open("Satconfig.json", "r") as json_file:
-                self.trackSettings.update(json.load(json_file))
+                self._trackSettings.update(json.load(json_file))
         except:
             print('Config file not present or corrupted.')
 
     def writeConfig(self):
         with open("Satconfig.json", "w") as json_file:
-            json.dump(self.trackSettings, json_file, indent=4, sort_keys=True)
+            json.dump(self._trackSettings, json_file, indent=4, sort_keys=True)
 
     # noinspection PyUnresolvedReferences
     def connectMount(self):
-        if self.trackSettings["telescopeType"] == 'LX200':
-            com_port = str('COM' + str(self.trackSettings["comPort"]))
+        if self._trackSettings["telescopeType"] == 'LX200':
+            com_port = str('COM' + str(self._trackSettings["comPort"]))
             try:
                 self.ser = serial.Serial(com_port, baudrate=9600, timeout=1, bytesize=serial.EIGHTBITS,
                                          parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE, xonxoff=False,
@@ -76,7 +113,7 @@ class Controller:
             except:
                 print('Failed to connect on ' + com_port)
                 return False, 'Failed to connect on ' + str(com_port)
-        elif self.trackSettings["telescopeType"] == 'ASCOM':
+        elif self._trackSettings["telescopeType"] == 'ASCOM':
             self.x = win32com.client.Dispatch("ASCOM.Utilities.Chooser")
             self.x.DeviceType = 'Telescope'
             driver_name = self.x.Choose("None")
@@ -100,11 +137,11 @@ class Controller:
                     return False, "Unable to connect to telescope, expect exception"
 
     def disconnectMount(self):
-        if self.trackSettings["telescopeType"] == 'LX200' and self.serialconnected is True:
+        if self._trackSettings["telescopeType"] == 'LX200' and self.serialconnected is True:
             self.ser.write(str.encode(':Q#'))
             self.ser.write(str.encode(':U#'))
             self.ser.close()
             self.serialconnected = False
-        elif self.trackSettings["telescopeType"] == 'ASCOM':
+        elif self._trackSettings["telescopeType"] == 'ASCOM':
             self.tel.AbortSlew()
             self.tel.Connected = False
