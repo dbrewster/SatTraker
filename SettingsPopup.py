@@ -59,6 +59,20 @@ class SettingsPopup(Frame):
         entryLon = Entry(bottomframe1, textvariable=self.lonVal)
         entryLon.grid(row=4, column=1)
 
+        rotationLabel = Label(bottomframe1, text='Rotation')
+        rotationLabel.grid(row=5, column=0)
+        self.rotationAngle = IntVar()
+        self.rotationAngle.set(self.controller.get("rotate"))
+        self.rotationAngle.trace("w", self.setRot)
+        entryRot = Entry(bottomframe1, textvariable=self.rotationAngle)
+        entryRot.grid(row=5, column=1)
+
+        horFlip = Button(bottomframe1, text='Horizontal Flip', command=self.setHorFlip)
+        horFlip.grid(row=6, column=0)
+
+        verFlip = Button(bottomframe1, text='Vertical Flip', command=self.setVerFlip)
+        verFlip.grid(row=6, column=1)
+
         def getExposureStr(strValue):
             value = float(strValue)
             if value > 0:
@@ -72,12 +86,12 @@ class SettingsPopup(Frame):
             self.labelExposureVal.config(text=getExposureStr(value))
 
         labelExposure = Label(bottomframe1, text="Exposure (s)")
-        labelExposure.grid(row=5, column=0)
+        labelExposure.grid(row=7, column=0)
         self.labelExposureVal = Label(bottomframe1, text=getExposureStr(self.controller.get("exposure")))
-        self.labelExposureVal.grid(row=5, column=1)
+        self.labelExposureVal.grid(row=7, column=1)
 
         exposure = Scale(bottomframe1, from_=-15, to=5, resolution=.1, orient="horizontal", showvalue=0, command=setExposureValue)
-        exposure.grid(row=6, column=0, columnspan=2, sticky="nesw")
+        exposure.grid(row=8, column=0, columnspan=2, sticky="nesw")
         exposure.set(self.controller.get("exposure"))
 
         def setGainValue(strValue):
@@ -86,12 +100,12 @@ class SettingsPopup(Frame):
             self.labelGainVal.config(text=str(value))
 
         labelGain = Label(bottomframe1, text="Gain")
-        labelGain.grid(row=7, column=0)
+        labelGain.grid(row=9, column=0)
         self.labelGainVal = Label(bottomframe1, text=str(self.controller.get("gain")))
-        self.labelGainVal.grid(row=7, column=1)
+        self.labelGainVal.grid(row=9, column=1)
 
         gain = Scale(bottomframe1, from_=0, to=300, orient="horizontal", showvalue=0, command=setGainValue)
-        gain.grid(row=8, column=0, columnspan=2, sticky="nesw")
+        gain.grid(row=10, column=0, columnspan=2, sticky="nesw")
         gain.set(self.controller.get("gain"))
 
         def setRefreshRate(strValue):
@@ -100,12 +114,12 @@ class SettingsPopup(Frame):
             self.labelRefreshRateVal.config(text=str(value))
 
         labelRefresh = Label(bottomframe1, text="Refresh Rate (FPS)")
-        labelRefresh.grid(row=9, column=0)
+        labelRefresh.grid(row=11, column=0)
         self.labelRefreshRateVal = Label(bottomframe1, text=str(self.controller.get("refreshRate")))
-        self.labelRefreshRateVal.grid(row=9, column=1)
+        self.labelRefreshRateVal.grid(row=11, column=1)
 
         refreshRate = Scale(bottomframe1, from_=1, to=60, orient="horizontal", showvalue=0, command=setRefreshRate)
-        refreshRate.grid(row=10, column=0, columnspan=2, sticky="nesw")
+        refreshRate.grid(row=12, column=0, columnspan=2, sticky="nesw")
         refreshRate.set(self.controller.get("refreshRate"))
 
     def closeSettings(self):
@@ -126,3 +140,15 @@ class SettingsPopup(Frame):
     # noinspection PyUnusedLocal
     def setCamera(self, *args):
         self.controller.set("camera", varGetOrDefault(self.camNumber, 0))
+
+    # noinspection PyUnusedLocal
+    def setRot(self, *args):
+        self.controller.set("rotate", varGetOrDefault(self.rotationAngle, 0))
+
+    # noinspection PyUnusedLocal
+    def setHorFlip(self, *args):
+        self.controller.set("flipHorizontal", not self.controller.get("flipHorizontal"))
+
+    # noinspection PyUnusedLocal
+    def setVerFlip(self, *args):
+        self.controller.set("flipVertical", not self.controller.get("flipVertical"))
